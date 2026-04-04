@@ -7,7 +7,7 @@ A collection of beautiful wallpapers for your desktop.
 ### One-liner install script:
 
 ```bash
-mkdir -p ~/Pictures && curl -sL https://github.com/yukazakiri/wallpapers/archive/refs/heads/main.tar.gz | tar xz -C ~/Pictures --strip-components=1
+mkdir -p ~/Pictures && curl -sL https://github.com/yukazakiri/wallpapers/archive/refs/heads/master.tar.gz | tar xz -C ~/Pictures --strip-components=1
 ```
 
 Or clone the repository:
@@ -15,6 +15,21 @@ Or clone the repository:
 ```bash
 git clone https://github.com/yukazakiri/wallpapers.git ~/Pictures/wallpapers
 ```
+
+## Apply Themes
+
+Want to apply themes to these wallpapers? Use the [wallpaper-converter](https://github.com/yukazakiri/wallpaper-converter):
+
+```bash
+go install github.com/yukazakiri/wallpaper-converter@latest
+```
+
+Then run:
+```bash
+wallpaper-converter
+```
+
+This will convert all wallpapers to 22 themed versions in `~/Pictures/ThemedWallpapers/`.
 
 ## Wallpapers Gallery
 
