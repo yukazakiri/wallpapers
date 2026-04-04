@@ -7,13 +7,13 @@ A collection of beautiful wallpapers for your desktop.
 ### One-liner install script:
 
 ```bash
-mkdir -p ~/Pictures/Wallpapers && curl -sL https://github.com/yukazakiri/wallpapers/archive/refs/heads/main.tar.gz | tar xz -C ~/Pictures/Wallpapers --strip-components=1
+mkdir -p ~/Pictures && curl -sL https://github.com/yukazakiri/wallpapers/archive/refs/heads/main.tar.gz | tar xz -C ~/Pictures --strip-components=1
 ```
 
 Or clone the repository:
 
 ```bash
-git clone https://github.com/yukazakiri/wallpapers.git ~/Pictures/Wallpapers
+git clone https://github.com/yukazakiri/wallpapers.git ~/Pictures/wallpapers
 ```
 
 ## Wallpapers Gallery
