@@ -2,20 +2,20 @@
 
 A collection of beautiful wallpapers for your desktop.
 
-![Wallpapers Gallery](https://raw.githubusercontent.com/yourusername/wallpapers/main/wallpapers.png)
+![Wallpapers Gallery](https://raw.githubusercontent.com/yukazakiri/wallpapers/main/wallpapers.png)
 
 ## Installation
 
 ### One-liner install script:
 
 ```bash
-mkdir -p ~/Pictures/Wallpapers && curl -sL https://github.com/yourusername/wallpapers/archive/refs/heads/main.tar.gz | tar xz -C ~/Pictures/Wallpapers --strip-components=1
+mkdir -p ~/Pictures/Wallpapers && curl -sL https://github.com/yukazakiri/wallpapers/archive/refs/heads/main.tar.gz | tar xz -C ~/Pictures/Wallpapers --strip-components=1
 ```
 
 Or clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/wallpapers.git ~/Pictures/Wallpapers
+git clone https://github.com/yukazakiri/wallpapers.git ~/Pictures/Wallpapers
 ```
 
 ## Wallpapers Included
