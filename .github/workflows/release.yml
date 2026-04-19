@@ -44,17 +44,23 @@ jobs:
         id: notes
         run: |
           PREV_TAG=${{ steps.version.outputs.previous_tag }}
+          HAS_NEW=false
           
           echo "## Updated Wallpapers" > release_notes.md
           if [ "$PREV_TAG" = "v0.0.0" ]; then
             echo "- Initial release of all wallpapers." >> release_notes.md
+            HAS_NEW=true
           else
             git diff --name-status $PREV_TAG HEAD -- '*.jpg' '*.jpeg' '*.png' > changes.txt
             if [ -s changes.txt ]; then
               while read -r status file; do
                 char=${status:0:1}
                 case "$char" in
-                  A) echo "- 🟢 Added: \`$file\`" >> release_notes.md ;;
+                  A) 
+                    echo "- 🟢 Added: \`$file\`" >> release_notes.md
+                    echo "  <br> <img src=\"https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/$file\" width=\"250\"/>" >> release_notes.md
+                    HAS_NEW=true
+                    ;;
                   M) echo "- 🟡 Modified: \`$file\`" >> release_notes.md ;;
                   D) echo "- 🔴 Deleted: \`$file\`" >> release_notes.md ;;
                   R) echo "- 🔵 Renamed: \`$file\`" >> release_notes.md ;;
@@ -64,6 +70,12 @@ jobs:
             else
               echo "- No wallpaper updates in this release." >> release_notes.md
             fi
+          fi
+          
+          if [ "$HAS_NEW" = "true" ]; then
+            echo "skip_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "skip_release=true" >> $GITHUB_OUTPUT
           fi
 
           # Calculate totals
@@ -76,7 +88,75 @@ jobs:
           echo "- **Total Wallpapers:** $TOTAL_WALLPAPERS" >> release_notes.md
           echo "- **Total Size:** $TOTAL_SIZE" >> release_notes.md
 
+      - name: Update README.md
+        run: |
+          cat << 'EOF' > update_readme.py
+          import os, glob, re
+
+          repo = os.environ.get("GITHUB_REPOSITORY", "yukazakiri/wallpapers")
+          branch = os.environ.get("GITHUB_REF_NAME", "master")
+
+          images = []
+          for ext in ('*.jpg', '*.jpeg', '*.png'):
+              images.extend(glob.glob(f"**/{ext}", recursive=True))
+          images = sorted([img for img in images if not img.startswith('artifacts/')])
+
+          gallery_lines = []
+          for i in range(0, len(images), 3):
+              row = images[i:i+3]
+              cols = []
+              for img in row:
+                  name = os.path.basename(img)
+                  url = f"https://raw.githubusercontent.com/{repo}/{branch}/{img}"
+                  cols.append(f"![{name}]({url})")
+              while len(cols) < 3:
+                  cols.append("")
+              gallery_lines.append("| " + " | ".join(cols) + " |")
+          gallery_table = "| " + " | ".join(["---"]*3) + " |\n" + "\n".join(gallery_lines)
+
+          list_lines = ["| File | Size |", "|------|------|"]
+          total_bytes = 0
+          for img in images:
+              size = os.path.getsize(img)
+              total_bytes += size
+              mb = size / (1024*1024)
+              if mb >= 1:
+                  size_str = f"~{mb:.1f} MB".replace(".0", "")
+              else:
+                  kb = size / 1024
+                  size_str = f"~{int(kb)} KB"
+              list_lines.append(f"| {os.path.basename(img)} | {size_str} |")
+          list_table = "\n".join(list_lines)
+
+          total_mb = total_bytes / (1024*1024)
+          total_text = f"- **{len(images)} wallpapers**\n- **~{int(total_mb)} MB total**\n"
+
+          def replace_section(text, start_marker, end_marker, new_content):
+              pattern = rf"({start_marker}\n+)(.*?)(\n+{end_marker})"
+              return re.sub(pattern, rf"\g<1>{new_content}\g<3>", text, flags=re.DOTALL)
+
+          with open("README.md", "r") as f:
+              content = f.read()
+
+          content = replace_section(content, "## Wallpapers Gallery", "## Wallpapers List", gallery_table)
+          content = replace_section(content, "## Wallpapers List", "## Total", list_table)
+          content = replace_section(content, "## Total", "## Credits", total_text)
+
+          with open("README.md", "w") as f:
+              f.write(content)
+          EOF
+          python3 update_readme.py
+          
+          if ! git diff --quiet README.md; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add README.md
+            git commit -m "docs: Update README wallpapers gallery [skip ci]"
+            git push
+          fi
+
       - name: Zip Wallpapers
+        if: steps.notes.outputs.skip_release != 'true'
         run: |
           mkdir -p artifacts
           
@@ -94,6 +174,7 @@ jobs:
           done
 
       - name: Create Release
+        if: steps.notes.outputs.skip_release != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.next_tag }}
