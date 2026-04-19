@@ -1,4 +1,4 @@
-/name: Release Wallpapers
+name: Release Wallpapers
 
 on:
   push:
