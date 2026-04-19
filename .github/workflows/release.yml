@@ -1,0 +1,104 @@
+name: Release Wallpapers
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '**/*.jpg'
+      - '**/*.jpeg'
+      - '**/*.png'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Next Version
+        id: version
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            NEXT_TAG="v0.1.0"
+          else
+            IFS='.' read -ra ADDR <<< "${LATEST_TAG#v}"
+            MAJOR=${ADDR[0]:-0}
+            MINOR=${ADDR[1]:-1}
+            PATCH=${ADDR[2]:-0}
+            NEXT_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+          echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+          echo "previous_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Generate Release Notes
+        id: notes
+        run: |
+          PREV_TAG=${{ steps.version.outputs.previous_tag }}
+          
+          echo "## Updated Wallpapers" > release_notes.md
+          if [ "$PREV_TAG" = "v0.0.0" ]; then
+            echo "- Initial release of all wallpapers." >> release_notes.md
+          else
+            git diff --name-status $PREV_TAG HEAD -- '*.jpg' '*.jpeg' '*.png' > changes.txt
+            if [ -s changes.txt ]; then
+              while read -r status file; do
+                char=${status:0:1}
+                case "$char" in
+                  A) echo "- 🟢 Added: \`$file\`" >> release_notes.md ;;
+                  M) echo "- 🟡 Modified: \`$file\`" >> release_notes.md ;;
+                  D) echo "- 🔴 Deleted: \`$file\`" >> release_notes.md ;;
+                  R) echo "- 🔵 Renamed: \`$file\`" >> release_notes.md ;;
+                  *) echo "- ⚪ Changed: \`$file\`" >> release_notes.md ;;
+                esac
+              done < changes.txt
+            else
+              echo "- No wallpaper updates in this release." >> release_notes.md
+            fi
+          fi
+
+          # Calculate totals
+          TOTAL_WALLPAPERS=$(find . -type f \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' \) | wc -l)
+          TOTAL_BYTES=$(find . -type f \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' \) -printf "%s\n" | awk '{s+=$1} END {print s}')
+          TOTAL_SIZE=$(numfmt --to=iec-i --suffix=B $TOTAL_BYTES)
+
+          echo "" >> release_notes.md
+          echo "## Summary" >> release_notes.md
+          echo "- **Total Wallpapers:** $TOTAL_WALLPAPERS" >> release_notes.md
+          echo "- **Total Size:** $TOTAL_SIZE" >> release_notes.md
+
+      - name: Zip Wallpapers
+        run: |
+          mkdir -p artifacts
+          
+          # Master zip containing all images
+          zip -r artifacts/all_wallpapers.zip . -i "*.jpg" "*.jpeg" "*.png"
+          
+          # Individual zips for each subdirectory containing images
+          for d in */ ; do
+            dirname="${d%/}"
+            if [ "$dirname" = "artifacts" ] || [ "$dirname" = ".git" ] || [ "$dirname" = ".github" ]; then continue; fi
+            
+            if [ -n "$(find "$dirname" -type f \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' \) | head -n 1)" ]; then
+               zip -rj "artifacts/${dirname}.zip" "$dirname" -i "*.jpg" "*.jpeg" "*.png"
+            fi
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.next_tag }}
+          name: Release ${{ steps.version.outputs.next_tag }}
+          body_path: release_notes.md
+          files: artifacts/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
